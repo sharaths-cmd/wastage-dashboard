@@ -91,12 +91,12 @@ def index():
 
 @app.get("/manifest.json")
 def manifest():
-    return FileResponse(os.path.join(BASE_DIR, "static", "manifest.json"))
+    return FileResponse(os.path.join(_static_dir, "manifest.json"))
 
 
 @app.get("/sw.js")
 def sw():
-    return FileResponse(os.path.join(BASE_DIR, "static", "sw.js"), media_type="application/javascript")
+    return FileResponse(os.path.join(_static_dir, "sw.js"), media_type="application/javascript")
 
 
 # ---------- upload ----------
