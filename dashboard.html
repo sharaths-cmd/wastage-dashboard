@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wastage Management Dashboard</title>
+<link rel="manifest" href="/manifest.json">
+<meta name="theme-color" content="#0f172a">
+<style>
+:root {
+  --bg: #0b1220;
+  --panel: #121b2e;
+  --panel-2: #16213a;
+  --border: #223050;
+  --text: #e6ecf5;
+  --muted: #8ea0bf;
+  --accent: #6d8dff;
+  --green: #33d69f;
+  --orange: #ffb547;
+  --red: #ff5d6c;
+  --yellow: #ffd166;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); }
+
+.app { display: grid; grid-template-columns: 260px 1fr; min-height: 100vh; }
+
+.sidebar {
+  background: var(--panel);
+  border-right: 1px solid var(--border);
+  padding: 20px 16px;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+.brand { font-size: 20px; font-weight: 700; margin-bottom: 20px; }
+.brand span { color: var(--accent); }
+.brand-logo { max-width: 100%; height: auto; max-height: 60px; background: #fff; border-radius: 8px; padding: 6px 10px; }
+
+.filter-group { margin-bottom: 14px; }
+.filter-group label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; text-transform: uppercase; letter-spacing: .04em; }
+.filter-group input, .filter-group select {
+  width: 100%; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border);
+  background: var(--panel-2); color: var(--text); font-size: 13px; margin-bottom: 4px;
+}
+.filter-group input[type=date] { color-scheme: dark; }
+.trend-total { text-align: right; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.trend-total b { color: var(--text); font-size: 13px; }
+.apply-btn, .reset-btn, #uploadBtn {
+  width: 100%; padding: 10px; border-radius: 8px; border: none; cursor: pointer;
+  font-weight: 600; margin-top: 6px; font-size: 13px;
+}
+.apply-btn { background: linear-gradient(135deg, var(--accent), #8f6dff); color: #fff; }
+.reset-btn { background: var(--panel-2); color: var(--muted); border: 1px solid var(--border); }
+.folder-note { margin-top: 20px; padding-top: 14px; border-top: 1px solid var(--border); font-size: 12px; color: var(--muted); line-height: 1.5; }
+
+.wow-table-wrap { overflow-x: auto; overflow-y: auto; max-height: 520px; }
+.wow-table-wrap thead th { position: sticky; top: 0; background: var(--panel); z-index: 1; }
+#wowTable { width: 100%; border-collapse: collapse; font-size: 12px; }
+#wowTable th, #wowTable td { padding: 6px 10px; text-align: right; border-bottom: 1px solid var(--border); white-space: nowrap; }
+#wowTable th:first-child, #wowTable td:first-child { text-align: left; position: sticky; left: 0; background: var(--panel); }
+#wowTable th { color: var(--muted); font-weight: 600; }
+.wow-up { color: var(--green); }
+.wow-down { color: var(--red); }
+.wow-amt { color: var(--muted); font-size: 10px; display: block; }
+
+.content { padding: 20px 28px; }
+.topbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.topbar h1 { font-size: 22px; margin: 0; }
+.topbar-right { display: flex; align-items: center; gap: 16px; }
+#lastUpdated { color: var(--muted); font-size: 12px; }
+.alert-bell { background: var(--panel-2); border: 1px solid var(--border); color: var(--text); padding: 8px 14px; border-radius: 20px; cursor: pointer; font-size: 14px; }
+
+.kpi-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 14px; margin-bottom: 24px; }
+.qty-grid { grid-template-columns: repeat(4, 1fr); margin-top: -10px; }
+.qty-grid .kpi-card .value { font-size: 18px; }
+.kpi-card { background: linear-gradient(160deg, var(--panel), var(--panel-2)); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+.kpi-card .label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+.kpi-card .value { font-size: 22px; font-weight: 700; margin-top: 6px; }
+.kpi-card.known .value { color: var(--orange); }
+.kpi-card.unknown .value { color: var(--red); }
+.kpi-card.consumable .value { color: var(--yellow); }
+.kpi-card.total .value { color: var(--accent); }
+.kpi-card.pct .value { color: var(--green); }
+
+.chart-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
+.chart-card { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 16px; }
+.chart-card.wide { grid-column: span 2; }
+.chart-card h3 { margin: 0 0 12px; font-size: 14px; color: var(--text); }
+.chart-header { display: flex; justify-content: space-between; align-items: center; }
+.toggle-group button { background: var(--panel-2); color: var(--muted); border: 1px solid var(--border); padding: 4px 10px; font-size: 12px; cursor: pointer; }
+.toggle-group button:first-child { border-radius: 6px 0 0 6px; }
+.toggle-group button:last-child { border-radius: 0 6px 6px 0; }
+.toggle-group button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.alerts-center { background: var(--panel); border: 1px solid var(--border); border-radius: 14px; padding: 18px; }
+.alerts-center h2 { margin-top: 0; font-size: 16px; }
+.alert-row { display: flex; justify-content: space-between; align-items: center; padding: 10px 12px; border-radius: 8px; margin-bottom: 8px; background: var(--panel-2); border-left: 4px solid var(--muted); font-size: 13px; }
+.alert-row.Critical { border-left-color: var(--red); }
+.alert-row.High { border-left-color: var(--orange); }
+.alert-row.Medium { border-left-color: var(--yellow); }
+.alert-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; margin-right: 8px; }
+.alert-badge.Critical { background: rgba(255,93,108,.15); color: var(--red); }
+.alert-badge.High { background: rgba(255,181,71,.15); color: var(--orange); }
+.alert-badge.Medium { background: rgba(255,209,102,.15); color: var(--yellow); }
+
+.heatmap-row { display: grid; grid-template-columns: 100px repeat(7, 1fr); gap: 4px; align-items: center; margin-bottom: 3px; }
+.heatmap-cell { text-align: center; padding: 6px 2px; border-radius: 4px; font-size: 11px; font-weight: 600; color: #ffffff; text-shadow: 0 1px 2px rgba(0,0,0,.8); }
+.heatmap-label { font-size: 12px; color: var(--muted); }
+
+.toast {
+  position: fixed; top: 20px; right: 20px; z-index: 999; background: var(--panel);
+  border: 1px solid var(--red); border-left: 5px solid var(--red); border-radius: 10px;
+  padding: 14px 18px; max-width: 340px; box-shadow: 0 10px 30px rgba(0,0,0,.4);
+  animation: slideIn .3s ease-out;
+}
+.toast h4 { margin: 0 0 6px; color: var(--red); font-size: 13px; }
+.toast p { margin: 2px 0; font-size: 12px; color: var(--text); }
+@keyframes slideIn { from { transform: translateX(120%); } to { transform: translateX(0); } }
+
+@media (max-width: 900px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar { position: relative; height: auto; }
+  .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+  .chart-grid { grid-template-columns: 1fr; }
+  .chart-card.wide { grid-column: span 1; }
+}
+
+</style>
+<script src="/static/chart.umd.min.js"></script>
+</head>
+<body>
+<div id="alertPopupHost"></div>
+
+<div class="app">
+  <aside class="sidebar">
+    <div class="brand"><img src="/static/logo.png" alt="Logo" class="brand-logo"></div>
+
+    <div class="filter-group">
+      <label>Date Range</label>
+      <input type="date" id="f_date_from">
+      <input type="date" id="f_date_to">
+    </div>
+    <div class="filter-group">
+      <label>Cluster</label>
+      <select id="f_cluster"><option value="">All</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Cluster Name</label>
+      <select id="f_cluster_name"><option value="">All</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Store</label>
+      <select id="f_store"><option value="">All</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Category</label>
+      <select id="f_category"><option value="">All</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Article</label>
+      <select id="f_item"><option value="">All</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Wastage Type</label>
+      <select id="f_loss_type">
+        <option value="">All</option>
+        <option value="known">Known Loss</option>
+        <option value="unknown">Unknown Loss</option>
+        <option value="consumable">Consumables</option>
+      </select>
+    </div>
+    <div class="filter-group">
+      <label>Day</label>
+      <select id="f_day"><option value="">All</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Week</label>
+      <select id="f_week"><option value="">All</option></select>
+    </div>
+    <div class="filter-group">
+      <label>Month</label>
+      <select id="f_month"><option value="">All</option></select>
+    </div>
+
+    <button id="applyBtn" class="apply-btn">Apply Filters</button>
+    <button id="resetBtn" class="reset-btn">Reset</button>
+
+    <div class="folder-note">Files dropped into the <b>Uploads/</b> folder sync here automatically — no manual upload needed.</div>
+  </aside>
+
+  <main class="content">
+    <header class="topbar">
+      <h1>Wastage Management Dashboard</h1>
+      <div class="topbar-right">
+        <span id="lastUpdated"></span>
+        <div class="toggle-group" id="metricToggle">
+          <button data-m="value" class="active">₹ Value</button>
+          <button data-m="qty">Qty</button>
+          <button data-m="pct">%</button>
+        </div>
+        <button id="alertBtn" class="alert-bell">🔔 <span id="alertCount">0</span></button>
+      </div>
+    </header>
+
+    <section class="kpi-grid" id="kpiGrid"></section>
+
+    <section class="chart-grid">
+      <div class="chart-card wide">
+        <div class="chart-header">
+          <h3>Wastage Trend</h3>
+          <div class="toggle-group" id="trendToggle">
+            <button data-g="day" class="active">Day</button>
+            <button data-g="week">Week</button>
+            <button data-g="month">Month</button>
+          </div>
+        </div>
+        <canvas id="trendChart" height="90"></canvas>
+        <div class="trend-total" id="trendTotal"></div>
+      </div>
+
+      <div class="chart-card">
+        <h3>Known vs Unknown Loss</h3>
+        <canvas id="kvuChart"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3>Cluster-wise Wastage</h3>
+        <canvas id="clusterChart"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3>Store-wise Wastage</h3>
+        <canvas id="storeChart"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3>Category-wise Wastage</h3>
+        <canvas id="categoryChart"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3>Top Wastage Articles</h3>
+        <canvas id="topArticlesChart"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3>Top Stores Contributing to Loss</h3>
+        <canvas id="topStoresChart"></canvas>
+      </div>
+
+      <div class="chart-card wide">
+        <h3>Spike Heatmap (Store × Day of Week)</h3>
+        <div id="heatmapContainer"></div>
+      </div>
+    </section>
+
+    <section class="chart-card wide" style="margin-bottom:24px">
+      <div class="chart-header">
+        <h3>Loss Trend (by Cluster / Store / Category / Item)</h3>
+        <div class="toggle-group" id="wowToggle">
+          <button data-d="cluster" class="active">Cluster</button>
+          <button data-d="store">Store</button>
+          <button data-d="category">Category</button>
+          <button data-d="item">Item</button>
+          <button data-p="week" class="active" data-role="period">Week</button>
+          <button data-p="day" data-role="period">Day</button>
+          <button data-cons="include" class="active" title="Known + Unknown + Consumables">INC</button>
+          <button data-cons="exclude" title="Known + Unknown only">EXC</button>
+        </div>
+      </div>
+      <p style="color:var(--muted);font-size:12px;margin:4px 0 8px">Filtered by the Cluster / Cluster Name / Store / Category / Article filters in the sidebar. "Day" shows the last 14 days.</p>
+      <div class="wow-table-wrap"><table id="wowTable"></table></div>
+    </section>
+
+    <section class="alerts-center">
+      <h2>Alerts Center</h2>
+      <div id="alertsList"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+const API = "";
+let trendGranularity = "day";
+let charts = {};
+let seenAlertIds = new Set(JSON.parse(localStorage.getItem("seenAlertIds") || "[]"));
+
+function qs(params) {
+  const p = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => { if (v) p.append(k, v); });
+  return p.toString();
+}
+
+function getFilters() {
+  return {
+    date_from: document.getElementById("f_date_from").value,
+    date_to: document.getElementById("f_date_to").value,
+    cluster: document.getElementById("f_cluster").value,
+    cluster_name: document.getElementById("f_cluster_name").value,
+    store: document.getElementById("f_store").value,
+    category: document.getElementById("f_category").value,
+    item: document.getElementById("f_item").value,
+    loss_type: document.getElementById("f_loss_type").value,
+    day: document.getElementById("f_day").value,
+    week: document.getElementById("f_week").value,
+    month: document.getElementById("f_month").value,
+  };
+}
+
+async function loadFilterOptions() {
+  const res = await fetch(`${API}/api/filters`);
+  const data = await res.json();
+  const fill = (id, values) => {
+    const sel = document.getElementById(id);
+    const current = sel.value;
+    sel.innerHTML = '<option value="">All</option>' + values.map(v => `<option value="${v}">${v}</option>`).join("");
+    sel.value = current;
+  };
+  fill("f_cluster", data.clusters);
+  fill("f_cluster_name", data.cluster_names);
+  fill("f_store", data.stores);
+  fill("f_category", data.categories);
+  fill("f_item", data.items);
+  fill("f_day", data.days);
+  fill("f_week", data.weeks);
+  fill("f_month", data.months);
+  if (data.date_max) document.getElementById("lastUpdated").textContent = "Latest data: " + data.date_max;
+}
+
+function fmtMoney(v) {
+  const n = Number(v || 0);
+  return "₹" + n.toLocaleString("en-IN", { maximumFractionDigits: 0, signDisplay: "always" });
+}
+
+let lastKPI = null;
+let metricMode = "value";
+
+async function loadKPIs() {
+  const f = getFilters();
+  const res = await fetch(`${API}/api/kpis?${qs(f)}`);
+  lastKPI = await res.json();
+  renderKPIs();
+}
+
+function renderKPIs() {
+  if (!lastKPI) return;
+  const d = lastKPI;
+  const grid = document.getElementById("kpiGrid");
+  const fmtQty = (v) => Number(v || 0).toLocaleString("en-IN", { maximumFractionDigits: 1 });
+  let vals;
+  if (metricMode === "qty") {
+    vals = {
+      total: fmtQty(d.total_qty), known: fmtQty(d.known_loss_qty), unknown: fmtQty(d.unknown_loss_qty),
+      consumable: fmtQty(d.consumables_qty), totalLoss: fmtQty(d.total_qty), pctLabel: null
+    };
+  } else if (metricMode === "pct") {
+    vals = {
+      total: d.total_with_consumables_pct + "%", known: d.known_loss_pct + "%", unknown: d.unknown_loss_pct + "%",
+      consumable: d.consumables_pct + "%", totalLoss: d.total_loss_pct + "%", pctLabel: null
+    };
+  } else {
+    vals = {
+      total: fmtMoney(d.total_with_consumables), known: fmtMoney(d.known_loss), unknown: fmtMoney(d.unknown_loss),
+      consumable: fmtMoney(d.consumables), totalLoss: fmtMoney(d.total_loss), pctLabel: d.total_loss_pct + "%"
+    };
+  }
+  grid.innerHTML = `
+    <div class="kpi-card total"><div class="label">Total Wastage</div><div class="value">${vals.total}</div></div>
+    <div class="kpi-card known"><div class="label">Known Loss</div><div class="value">${vals.known}</div></div>
+    <div class="kpi-card unknown"><div class="label">Unknown Loss (−ve = shrinkage)</div><div class="value">${vals.unknown}</div></div>
+    <div class="kpi-card consumable"><div class="label">Consumables (within Unknown Loss)</div><div class="value">${vals.consumable}</div></div>
+    <div class="kpi-card"><div class="label">Total Loss</div><div class="value">${vals.totalLoss}</div></div>
+    <div class="kpi-card pct"><div class="label">Total Loss % of Sales</div><div class="value">${d.total_loss_pct}%</div></div>
+  `;
+}
+document.getElementById("metricToggle").onclick = (e) => {
+  if (e.target.tagName !== "BUTTON") return;
+  document.querySelectorAll("#metricToggle button").forEach(b => b.classList.remove("active"));
+  e.target.classList.add("active");
+  metricMode = e.target.dataset.m;
+  renderKPIs();
+  refreshAll();
+};
+
+function destroyChart(id) { if (charts[id]) { charts[id].destroy(); } }
+
+const palette = ["#6d8dff", "#33d69f", "#ffb547", "#ff5d6c", "#ffd166", "#8f6dff", "#4dd0e1", "#c792ea"];
+
+async function loadTrend() {
+  const f = getFilters();
+  const res = await fetch(`${API}/api/trend?granularity=${trendGranularity}&metric=${metricMode === "qty" ? "qty" : "value"}&${qs(f)}`);
+  const rows = await res.json();
+  const labels = rows.map(r => r.label);
+  destroyChart("trend");
+  const ctx = document.getElementById("trendChart");
+  charts.trend = new Chart(ctx, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        { label: "Known Loss", data: rows.map(r => Number(r.known || 0)), borderColor: palette[0], backgroundColor: "transparent", tension: .3 },
+        { label: "Unknown Loss", data: rows.map(r => Number(r.unknown || 0)), borderColor: palette[3], backgroundColor: "transparent", tension: .3 },
+        { label: "Consumables", data: rows.map(r => Number(r.consumable || 0)), borderColor: palette[4], backgroundColor: "transparent", tension: .3 },
+      ]
+    },
+    options: chartOpts(true)
+  });
+  const tk = rows.reduce((s, r) => s + (r.known || 0), 0);
+  const tu = rows.reduce((s, r) => s + (r.unknown || 0), 0);
+  const tc = rows.reduce((s, r) => s + (r.consumable || 0), 0);
+  document.getElementById("trendTotal").innerHTML =
+    `Shown above (${trendGranularity}-wise): <b>${fmtMoney(tk + tu + tc)}</b> total ` +
+    `— matches the Total Wastage card when filters are the same`;
+}
+
+function chartOpts(legend) {
+  return {
+    responsive: true,
+    plugins: { legend: { display: legend, labels: { color: "#8ea0bf" } } },
+    scales: {
+      x: { ticks: { color: "#8ea0bf" }, grid: { color: "#223050" } },
+      y: { ticks: { color: "#8ea0bf" }, grid: { color: "#223050" } }
+    }
+  };
+}
+
+async function loadKVU() {
+  const f = getFilters();
+  const res = await fetch(`${API}/api/known_vs_unknown?${qs(f)}`);
+  const d = await res.json();
+  destroyChart("kvu");
+  charts.kvu = new Chart(document.getElementById("kvuChart"), {
+    type: "doughnut",
+    data: {
+      labels: ["Known Loss", "Unknown Loss", "Consumables"],
+      datasets: [{ data: [Number(d.known || 0), Number(d.unknown || 0), Number(d.consumable || 0)], backgroundColor: [palette[2], palette[3], palette[4]] }]
+    },
+    options: { plugins: { legend: { labels: { color: "#8ea0bf" } } } }
+  });
+}
+
+async function loadBreakdown(by, canvasId, chartKey, type = "bar", limit = 10) {
+  const f = getFilters();
+  const res = await fetch(`${API}/api/breakdown?by=${by}&limit=${limit}&metric=${metricMode === "qty" ? "qty" : "value"}&${qs(f)}`);
+  const rows = await res.json();
+  destroyChart(chartKey);
+  charts[chartKey] = new Chart(document.getElementById(canvasId), {
+    type,
+    data: {
+      labels: rows.map(r => r.label || "N/A"),
+      datasets: [{ label: "Wastage", data: rows.map(r => Number(r.amount || 0)), backgroundColor: palette }]
+    },
+    options: { ...chartOpts(false), indexAxis: type === "bar" && ["topArticlesChart", "topStoresChart"].includes(canvasId) ? "y" : "x" }
+  });
+}
+
+async function loadHeatmap() {
+  const f = getFilters();
+  const res = await fetch(`${API}/api/heatmap?${qs(f)}`);
+  const rows = await res.json();
+  const stores = [...new Set(rows.map(r => r.store_name))];
+  const days = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+  const map = {};
+  rows.forEach(r => { map[`${r.store_name}|${r.day}`] = r.amt; });
+  const max = Math.max(1, ...rows.map(r => Number(r.amt || 0)));
+  const container = document.getElementById("heatmapContainer");
+  const headerRow = `<div class="heatmap-row heatmap-header">
+      <div class="heatmap-label"></div>
+      ${days.map(d => `<div class="heatmap-label" style="text-align:center">${d}</div>`).join("")}
+    </div>`;
+  container.innerHTML = headerRow + stores.slice(0, 20).map(s => `
+    <div class="heatmap-row">
+      <div class="heatmap-label">${s}</div>
+      ${days.map(d => {
+        const v = map[`${s}|${d}`] || 0;
+        const intensity = Number(v || 0) / max;
+        const color = `rgba(255,93,108,${0.35 + intensity * 0.65})`;
+        return `<div class="heatmap-cell" style="background:${color}" title="${s} ${d}: ${fmtMoney(v)}">${v ? Math.round(v) : ""}</div>`;
+      }).join("")}
+    </div>
+  `).join("");
+}
+
+async function loadAlerts() {
+  const res = await fetch(`${API}/api/alerts?limit=50`);
+  const alerts = await res.json();
+  const list = document.getElementById("alertsList");
+  if (!alerts.length) {
+    list.innerHTML = '<p style="color:var(--muted)">No active alerts. All stores within normal wastage range.</p>';
+  } else {
+    list.innerHTML = alerts.map(a => `
+      <div class="alert-row ${a.severity}">
+        <div><span class="alert-badge ${a.severity}">${a.severity}</span>${a.message}</div>
+        <div style="color:var(--muted);font-size:11px">${a.record_date}</div>
+      </div>
+    `).join("");
+  }
+  document.getElementById("alertCount").textContent = alerts.length;
+
+  const newOnes = alerts.filter(a => a.severity === "Critical" && !seenAlertIds.has(a.id));
+  newOnes.slice(0, 3).forEach(a => showToast(a));
+  newOnes.forEach(a => seenAlertIds.add(a.id));
+  localStorage.setItem("seenAlertIds", JSON.stringify([...seenAlertIds]));
+}
+
+function showToast(a) {
+  const host = document.getElementById("alertPopupHost");
+  const el = document.createElement("div");
+  el.className = "toast";
+  el.innerHTML = `<h4>🚨 High Wastage Alert</h4>
+    <p>${a.message}</p>`;
+  host.appendChild(el);
+  setTimeout(() => el.remove(), 8000);
+}
+
+let wowDim = "cluster";
+let wowConsumables = "include";
+let wowPeriod = "week";
+async function loadWoW() {
+  const f = getFilters();
+  const params = { cluster: f.cluster, cluster_name: f.cluster_name, store: f.store, category: f.category, item: f.item, loss_view: wowConsumables };
+  const res = await fetch(`${API}/api/wow?dim=${wowDim}&period=${wowPeriod}&metric=${metricMode === "qty" ? "qty" : "value"}&${qs(params)}`);
+  const d = await res.json();
+  const table = document.getElementById("wowTable");
+  if (!d.rows.length) { table.innerHTML = "<tr><td>No data</td></tr>"; return; }
+  let head = "<tr><th>" + (wowDim[0].toUpperCase() + wowDim.slice(1)) + "</th>" +
+    d.weeks.map(w => `<th>${w}</th>`).join("") + "</tr>";
+  const body = d.rows.map(r => {
+    const cells = r.cells.map(c => {
+      let pctHtml = "";
+      if (c.pct_of_sales !== null) {
+        const cls = c.pct_of_sales > 0 ? "wow-up" : "wow-down";
+        pctHtml = `<span class="${cls}">${c.pct_of_sales}%</span>`;
+      }
+      if (metricMode === "pct") {
+        return `<td>${pctHtml || "-"}</td>`;
+      }
+      const numStr = metricMode === "qty"
+        ? Number(c.amount || 0).toLocaleString("en-IN", { maximumFractionDigits: 1 })
+        : fmtMoney(c.amount);
+      return `<td>${pctHtml}<span class="wow-amt">${numStr}</span></td>`;
+    }).join("");
+    return `<tr><td>${r.label}</td>${cells}</tr>`;
+  }).join("");
+  table.innerHTML = `<thead>${head}</thead><tbody>${body}</tbody>`;
+}
+document.getElementById("wowToggle").onclick = (e) => {
+  if (e.target.tagName !== "BUTTON") return;
+  if (e.target.dataset.d) {
+    document.querySelectorAll("#wowToggle button[data-d]").forEach(b => b.classList.remove("active"));
+    e.target.classList.add("active");
+    wowDim = e.target.dataset.d;
+  }
+  if (e.target.dataset.p) {
+    document.querySelectorAll("#wowToggle button[data-role='period']").forEach(b => b.classList.remove("active"));
+    e.target.classList.add("active");
+    wowPeriod = e.target.dataset.p;
+  }
+  if (e.target.dataset.cons) {
+    document.querySelectorAll("#wowToggle button[data-cons]").forEach(b => b.classList.remove("active"));
+    e.target.classList.add("active");
+    wowConsumables = e.target.dataset.cons;
+  }
+  loadWoW();
+};
+
+async function refreshAll() {
+  await Promise.all([loadKPIs(), loadTrend(), loadKVU(),
+    loadBreakdown("cluster", "clusterChart", "cluster"),
+    loadBreakdown("store", "storeChart", "store"),
+    loadBreakdown("category", "categoryChart", "category"),
+    loadBreakdown("item", "topArticlesChart", "topArticles", "bar", 10),
+    loadBreakdown("store", "topStoresChart", "topStores", "bar", 10),
+    loadHeatmap(), loadAlerts(), loadWoW()]);
+}
+
+document.getElementById("applyBtn").onclick = refreshAll;
+document.getElementById("resetBtn").onclick = () => {
+  document.querySelectorAll(".sidebar select").forEach(s => s.value = "");
+  document.querySelectorAll(".sidebar input[type=date]").forEach(i => i.value = "");
+  refreshAll();
+};
+document.getElementById("trendToggle").onclick = (e) => {
+  if (e.target.tagName !== "BUTTON") return;
+  document.querySelectorAll("#trendToggle button").forEach(b => b.classList.remove("active"));
+  e.target.classList.add("active");
+  trendGranularity = e.target.dataset.g;
+  loadTrend();
+};
+document.getElementById("alertBtn").onclick = () => {
+  document.querySelector(".alerts-center").scrollIntoView({ behavior: "smooth" });
+};
+
+(async function init() {
+  await loadFilterOptions();
+  await refreshAll();
+  // Auto-refresh removed - charts now only update when you change a filter/toggle,
+  // so your current view stays exactly as you left it.
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+})();
+
+</script>
+</body>
+</html>
