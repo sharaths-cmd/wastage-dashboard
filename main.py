@@ -16,7 +16,10 @@ app = FastAPI(title="Wastage Management System")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 BASE_DIR = os.path.dirname(__file__)
-app.mount("/static", StaticFiles(directory=os.path.join(BASE_DIR, "static")), name="static")
+_static_dir = os.path.join(BASE_DIR, "static")
+if not os.path.isdir(_static_dir):
+    _static_dir = BASE_DIR  # fallback: files sitting at repo root instead of in static/
+app.mount("/static", StaticFiles(directory=_static_dir), name="static")
 
 
 # ---------- helpers ----------
