@@ -120,6 +120,14 @@ def rescan():
 
 # ---------- filter options ----------
 
+@app.get("/api/debug/files")
+def debug_files():
+    conn = get_conn()
+    rows = conn.execute("SELECT * FROM processed_files").fetchall()
+    conn.close()
+    return [dict(r) for r in rows]
+
+
 @app.get("/api/filters")
 def filters():
     conn = get_conn()
