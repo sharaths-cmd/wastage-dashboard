@@ -198,11 +198,22 @@ def process_file(path):
 def scan_upload_folder():
     os.makedirs(UPLOAD_DIR, exist_ok=True)
     results = []
-    for fn in os.listdir(UPLOAD_DIR):
-        if fn.startswith("~$") or fn.startswith("."):
-            continue
-        if not fn.lower().endswith((".csv", ".xlsx", ".xls")):
-            continue
-        path = os.path.join(UPLOAD_DIR, fn)
-        results.append(process_file(path))
+    scan_dirs = [UPLOAD_DIR]
+    root_dir = os.path.dirname(__file__)
+    if root_dir != UPLOAD_DIR:
+        scan_dirs.append(root_dir)  # fallback: files uploaded to repo root instead of Uploads/
+    seen = set()
+    for d in scan_dirs:
+        for fn in os.listdir(d):
+            if fn.startswith("~$") or fn.startswith("."):
+                continue
+            if not fn.lower().endswith((".csv", ".xlsx", ".xls")):
+                continue
+            if fn.lower() == "mail_ids.xlsx" or fn in seen:
+                continue
+            if detect_file_type(fn) is None:
+                continue  # skip unrelated files at root (e.g. mail_ids.xlsx already excluded above)
+            seen.add(fn)
+            path = os.path.join(d, fn)
+            results.append(process_file(path))
     return results
