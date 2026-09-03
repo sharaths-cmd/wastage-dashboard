@@ -65,8 +65,6 @@ COMMON_PARAMS = dict(
 @app.on_event("startup")
 def startup():
     init_db()
-    scan_upload_folder()
-    generate_alerts()
     t = threading.Thread(target=background_watcher, daemon=True)
     t.start()
 
